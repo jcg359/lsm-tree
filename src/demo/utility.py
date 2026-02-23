@@ -1,5 +1,6 @@
 import random
 import os
+from pathlib import Path
 
 sensors = [
     ("attic", {"temp": 104, "scale": "F", "humidity": 28}),
@@ -68,7 +69,7 @@ def random_customers(raw: str):
 
 
 def data_root_path():
-    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 
 
 def delete_data_files(parent_directory):

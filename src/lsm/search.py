@@ -31,6 +31,8 @@ class LSMTreeSearch:
     def search(self, key: str):
         result = self._memtable.search(key)
         if result is not None:
+            if result == sst_util.tombstone():
+                return None, "MT-x"
             return result, "MT"
 
         for i in range(0, self._max_sst_levels + 1):
@@ -38,10 +40,11 @@ class LSMTreeSearch:
 
             result = self._sst.search(key, i, last_id)
             if result is not None:
+                if result == sst_util.tombstone():
+                    return None, f"L{i}-x"
                 return result, f"L{i}"
 
         return None, f"L{self._max_sst_levels}"
 
     def level_counts(self):
-        print(f"getting counts with {self._last_file_ids}")
         return self._reader.get_level_counts(self._last_file_ids, self._max_sst_levels)

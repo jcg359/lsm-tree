@@ -42,9 +42,7 @@ class SortedTableReader:
         for i in range(0, max_level + 1):
             ldir = sst_util.level_dir(self.root_data_path, i)
             count = 0
-            print(f"lastid for level {i} is {last_ids[i]}")
             for fileid in self.list_file_ids(ldir, last_ids[i]):
-                print(f"couting {fileid} for level {i}")
                 count += sum([ix["record_count"] for ix in self.read_index(ldir, fileid)])
 
             result.append({"sst_level": f"L{i}", "key_count": count})

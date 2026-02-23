@@ -62,9 +62,6 @@ class SkipList:
 
         candidate = node.forward[0]
         if candidate is not None and candidate.key == key:
-            # handle soft deletes
-            if candidate.value == sst_util.tombstone():
-                return None
             return candidate.value
         return None
 
@@ -72,13 +69,26 @@ class SkipList:
         update = self._find_update_nodes(key)
 
         candidate = update[0].forward[0]
-        if candidate is None or candidate.key != key or candidate.value == sst_util.tombstone():
-            return False
+        if candidate is not None and candidate.key == key:
+            # key exists — decrement size only if it was a live entry
+            if candidate.value != sst_util.tombstone():
+                self._size -= 1
+            candidate.value = sst_util.tombstone()
+            return True
 
-        # perform soft delete
-        candidate.value = sst_util.tombstone()
-        self._size -= 1
-        return True
+        # key not present — insert a tombstone node so the delete propagates to SSTables
+        new_level = self._random_level()
+        if new_level > self._level:
+            for i in range(self._level + 1, new_level + 1):
+                update[i] = self._head
+            self._level = new_level
+
+        node = SkipListNode(key, sst_util.tombstone(), new_level)
+        for i in range(new_level + 1):
+            node.forward[i] = update[i].forward[i]
+            update[i].forward[i] = node
+
+        return False
 
     def count(self) -> int:
         return self._size

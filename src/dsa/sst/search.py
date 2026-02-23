@@ -97,7 +97,7 @@ class SortedTableSearch:
 
         for record in self._reader.read_block(folder, file_id, block_entry):
             if record["key"] == key:
-                return True, (None if record["value"] == sst_util.tombstone() else record["value"])
+                return True, record["value"]
             if record["key"] > key:
                 break  # records are sorted; we passed the target
 
