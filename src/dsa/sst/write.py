@@ -5,7 +5,7 @@ from typing import Iterable, Iterator, List, Optional, Tuple
 
 from ulid import ULID
 
-import src.dsa.sst.utility as sst_util
+import src.dsa.sst.utility as sst_u
 
 
 class SortedTableWriter:
@@ -13,12 +13,12 @@ class SortedTableWriter:
         self._root_data_path = root_data_path
 
     def write(self, level: int, block_size: int, records: Iterable[dict]) -> Tuple[str, str]:
-        folder = sst_util.level_dir(self._root_data_path, level)
+        folder = sst_u.level_dir(self._root_data_path, level)
         os.makedirs(folder, exist_ok=True)
 
         file_id = str(ULID())
-        data_path = sst_util.data_path(folder, file_id)
-        index_path = sst_util.index_path(folder, file_id)
+        data_path = sst_u.data_path(folder, file_id)
+        index_path = sst_u.index_path(folder, file_id)
 
         index = []
         block_num = 0
@@ -65,7 +65,7 @@ class SortedTableWriter:
         return data_path, file_id
 
     def preserve_files(self, level: int, file_ids: List[str]) -> str:
-        folder = sst_util.level_dir(self._root_data_path, level)
+        folder = sst_u.level_dir(self._root_data_path, level)
 
         for file in pathlib.Path(folder).iterdir():
             if not file.is_file() or not file.name.endswith(".index.jsonl"):
@@ -80,10 +80,10 @@ class SortedTableWriter:
         return file_ids[0]
 
     def remove_file(self, level: int, file_id: str) -> None:
-        folder = sst_util.level_dir(self._root_data_path, level)
+        folder = sst_u.level_dir(self._root_data_path, level)
         for path in (
-            sst_util.data_path(folder, file_id),
-            sst_util.index_path(folder, file_id),
+            sst_u.data_path(folder, file_id),
+            sst_u.index_path(folder, file_id),
         ):
             if os.path.exists(path):
                 os.remove(path)

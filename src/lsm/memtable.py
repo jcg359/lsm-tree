@@ -55,12 +55,12 @@ class LSMTreeMemtable:
     def init_memtable(self):
         self._current = SkipList(block_size=self._current.block_size, max_level=self._current.max_level)
 
-    def insert(self, customer_id: str, raw: str) -> None:
+    def insert(self, customer_id: str, raw: str) -> tuple | None:
         parts = [p.strip() for p in raw.split(",")]
 
         if len(parts) != 3:
             print("error: expected 3 comma-separated values")
-            return
+            return None
 
         room_device, temperature_raw, humidity_raw = parts
 
@@ -69,7 +69,7 @@ class LSMTreeMemtable:
         temp_match = re.fullmatch(r"(-?\d+(?:\.\d+)?)([fFcC])", temperature_raw)
         if not temp_match:
             print("error: temperature must be a number followed by F or C (e.g. 72.5F or 22c)")
-            return
+            return None
 
         temp_number = temp_match.group(1)
         scale = temp_match.group(2).upper()
@@ -80,14 +80,13 @@ class LSMTreeMemtable:
                 raise ValueError
         except ValueError:
             print("error: humidity must be a number between 1 and 100")
-            return
+            return None
 
-        self._current.insert(
-            key,
-            {
-                "temperature": temp_number,
-                "scale": scale,
-                "humidity": humidity_raw,
-            },
-        )
+        value = {
+            "temperature": temp_number,
+            "scale": scale,
+            "humidity": humidity_raw,
+        }
+        self._current.insert(key, value)
         print(f"inserted: {key}")
+        return key, value

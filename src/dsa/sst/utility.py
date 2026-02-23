@@ -17,6 +17,10 @@ def tombstone():
     return "__TOMBSTONE__"
 
 
+def tombstone_source():
+    return "-x"
+
+
 def ulid_max():
     return "ZZZZZZZZZZZZZZZZZZZZZZZZZZ"
 

@@ -26,8 +26,8 @@ A sorted in-memory key-value store (memtable). Keys are kept in sorted order at 
 | Method | Description |
 |--------|-------------|
 | `insert(key, value)` | Insert or overwrite. Revives a tombstoned key. |
-| `search(key)` | Return value or `None` if absent or deleted. |
-| `delete(key) -> bool` | Soft-delete via tombstone. Returns `False` if key was not live. |
+| `search(key)` | Return the raw stored value (including the tombstone) or `None` if the key is absent. Callers are responsible for interpreting the tombstone. |
+| `delete(key) -> (key, tombstone)` | Soft-delete via tombstone. Always writes the tombstone so deletes propagate to lower SSTable levels on flush. Returns `(key, tombstone_value)`. |
 | `count() -> int` | Number of live (non-tombstoned) entries. |
 | `ordered_keys()` | Iterator over keys in sorted order, tombstones excluded. |
 | `flush_to_level_zero(root_folder) -> (data_path, file_id)` | Write all entries (including tombstones) to a new SSTable pair under `root_folder/L0/`. Returns `(data_path, file_id)`. |
@@ -53,6 +53,7 @@ Sorted String Table (SSTable) file format and operations. All files in this pack
 <root>/
   L0/   <ULID>.jsonl              one JSON record per line: {"key": …, "value": …}
         <ULID>.index.jsonl        block index: {"block", "first_key", "offset", "record_count"}
+        wal.jsonl                 write-ahead log (one JSON record per line, same format)
   L1/   …
 ```
 
@@ -163,7 +164,7 @@ Delegates all file I/O to a `SortedTableReader`.
 
 **Constructor:** `SortedTableSearch(reader: SortedTableReader)`
 
-**`search(key, level, last_id="") -> value | None`** dispatches to one of two strategies:
+**`search(key, level, last_id="") -> value | None`** dispatches to one of two strategies. Returns the raw stored value or tombstone - when the key is found, or `None` when the key is absent. 
 
 **Level 0** - files may have overlapping key ranges as memtables flush before compaction. Files are scanned in descending ULID order (newest first). The first file that contains the key - including a tombstone - is authoritative; older files are not consulted.
 

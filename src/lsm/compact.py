@@ -1,12 +1,12 @@
 import src.dsa.sst.compact as sst_compact
-import src.dsa.sst.utility as sst_util
+import src.dsa.sst.utility as sst_u
 import src.dsa.sst.write as sst_write
 
 
 class LSMTreeCompator:
     def __init__(self, data_root_path: str):
         # only compacting 1 level for demo purposes
-        l1_only_config = sst_util.SortedTableConfiguration(levels={1: sst_util.SortedLevelConfiguration()})
+        l1_only_config = sst_u.SortedTableConfiguration(levels={1: sst_u.SortedLevelConfiguration()})
         self._compactor = sst_compact.SortedTableCompactor(
             root_data_path=data_root_path,
             config=l1_only_config,

@@ -5,6 +5,7 @@ args_cmd = {"load": ctrl.load, "search": ctrl.search, "delete": ctrl.delete}
 single_cmd = {"input": ctrl.save_input, "truncate": ctrl.truncate, "compact": ctrl.compact}
 show_cmd = {"count": ctrl.level_counts, "memtable": ctrl.memtable_keys}
 
+ctrl.restore_memtable_wal()
 
 while True:
     print()

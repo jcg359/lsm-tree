@@ -3,11 +3,11 @@ from typing import Iterator, List, Optional, Tuple
 
 import src.dsa.sst.write as sst_write
 import src.dsa.sst.read as sst_read
-import src.dsa.sst.utility as sst_util
+import src.dsa.sst.utility as sst_u
 
 
 class SortedTableCompactor:
-    def __init__(self, root_data_path: str, config: sst_util.SortedTableConfiguration):
+    def __init__(self, root_data_path: str, config: sst_u.SortedTableConfiguration):
         self._root_data_path = root_data_path
 
         self._config = config
@@ -23,7 +23,7 @@ class SortedTableCompactor:
         if merge_l0_id is None:
             return None, self._reader.list_file_ids(l1_dir, last_l1_id)
 
-        # key range from index + last block only — no full file load
+        # key range from index + last block only - no full file load
         l0_range = self._reader.get_key_range(l0_dir, merge_l0_id)
         if l0_range is None:
             return None, self._reader.list_file_ids(l1_dir, last_l1_id)
@@ -35,7 +35,7 @@ class SortedTableCompactor:
         # plan how many output files and where to split, using only index reads
         split_keys = self._level_key_splits(l0_dir, merge_l0_id, l1_dir, overlapping_file_ids, 1)
 
-        # merge streams block by block — one block per cursor in memory at a time
+        # merge streams block by block - one block per cursor in memory at a time
         l1_cfg = self._config.for_level(1)
         merged = self._merge_records(l0_dir, merge_l0_id, l1_dir, overlapping_file_ids)
         new_file_ids = self._writer.write_split(1, merged, split_keys, l1_cfg.block_size, l1_cfg.blocks_per_file)
@@ -51,11 +51,11 @@ class SortedTableCompactor:
     # ------------------------------------------------------------------
 
     def _level_dir(self, level: int) -> str:
-        return sst_util.level_dir(self._root_data_path, level)
+        return sst_u.level_dir(self._root_data_path, level)
 
     def _read_file_ids(self, level):
         folder = self._level_dir(level)
-        file_ids = self._reader.list_file_ids(folder, sst_util.ulid_max())
+        file_ids = self._reader.list_file_ids(folder, sst_u.ulid_max())
         return file_ids
 
     def _oldest_file_id(self, level: int) -> Optional[str]:
@@ -132,7 +132,7 @@ class SortedTableCompactor:
             if record["key"] != last_key:
                 yield record
                 last_key = record["key"]
-            # else: same key from a lower-priority source — discard
+            # else: same key from a lower-priority source - discard
 
             if not self._reader.advance_cursor(cursors[min_idx]):
                 cursors.pop(min_idx)

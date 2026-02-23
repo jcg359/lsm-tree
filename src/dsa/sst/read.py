@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
-import src.dsa.sst.utility as sst_util
+import src.dsa.sst.utility as sst_u
 
 
 @dataclass
@@ -40,7 +40,7 @@ class SortedTableReader:
     ):
         result = []
         for i in range(0, max_level + 1):
-            ldir = sst_util.level_dir(self.root_data_path, i)
+            ldir = sst_u.level_dir(self.root_data_path, i)
             count = 0
             for fileid in self.list_file_ids(ldir, last_ids[i]):
                 count += sum([ix["record_count"] for ix in self.read_index(ldir, fileid)])
@@ -58,15 +58,15 @@ class SortedTableReader:
         ]
 
         last_id = last_id or ""
-        last_id = (sst_util.ulid_min() if last_id == "" else last_id).strip()
+        last_id = (sst_u.ulid_min() if last_id == "" else last_id).strip()
         return [fid for fid in ids if fid <= last_id]
 
     def read_index(self, folder: str, file_id: str) -> List[dict]:
-        with open(sst_util.index_path(folder, file_id), "r", encoding="utf-8") as f:
+        with open(sst_u.index_path(folder, file_id), "r", encoding="utf-8") as f:
             return [json.loads(line) for line in f if line.strip()]
 
     def read_block(self, folder: str, file_id: str, block: dict) -> List[dict]:
-        data_path = sst_util.data_path(folder, file_id)
+        data_path = sst_u.data_path(folder, file_id)
         records = []
         with open(data_path, "rb") as f:
             f.seek(block["offset"])
@@ -107,7 +107,7 @@ class SortedTableReader:
         if cursor.pos + 1 < len(cursor.records):
             cursor.pos += 1
             return True
-        # current block exhausted — load the next one
+        # current block exhausted - load the next one
         next_block_idx = cursor.block_idx + 1
         if next_block_idx >= len(cursor.blocks):
             return False

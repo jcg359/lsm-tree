@@ -3,7 +3,7 @@ import random
 from typing import List, Optional
 
 import src.dsa.sst.write as sst_write
-import src.dsa.sst.utility as sst_util
+import src.dsa.sst.utility as sst_u
 
 
 class SkipListNode:
@@ -32,7 +32,7 @@ class SkipList:
         candidate = update[0].forward[0]
         if candidate is not None and candidate.key == key:
             # revive the tombstone
-            if candidate.value == sst_util.tombstone():
+            if candidate.value == sst_u.tombstone():
                 self._size += 1
             candidate.value = value
             return
@@ -65,30 +65,30 @@ class SkipList:
             return candidate.value
         return None
 
-    def delete(self, key) -> bool:
+    def delete(self, key) -> tuple:
         update = self._find_update_nodes(key)
 
         candidate = update[0].forward[0]
         if candidate is not None and candidate.key == key:
-            # key exists — decrement size only if it was a live entry
-            if candidate.value != sst_util.tombstone():
+            # key exists - decrement size only if it was a live entry
+            if candidate.value != sst_u.tombstone():
                 self._size -= 1
-            candidate.value = sst_util.tombstone()
-            return True
+            candidate.value = sst_u.tombstone()
+            return key, sst_u.tombstone()
 
-        # key not present — insert a tombstone node so the delete propagates to SSTables
+        # key not present - insert a tombstone node so the delete propagates to SSTables
         new_level = self._random_level()
         if new_level > self._level:
             for i in range(self._level + 1, new_level + 1):
                 update[i] = self._head
             self._level = new_level
 
-        node = SkipListNode(key, sst_util.tombstone(), new_level)
+        node = SkipListNode(key, sst_u.tombstone(), new_level)
         for i in range(new_level + 1):
             node.forward[i] = update[i].forward[i]
             update[i].forward[i] = node
 
-        return False
+        return key, sst_u.tombstone()
 
     def count(self) -> int:
         return self._size
@@ -109,7 +109,7 @@ class SkipList:
         # walk level-0 linked list in sorted order, skipping tombstones
         node = self._head.forward[0]
         while node is not None:
-            if node.value != sst_util.tombstone():
+            if node.value != sst_u.tombstone():
                 yield node.key
             node = node.forward[0]
 

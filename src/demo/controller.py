@@ -1,8 +1,13 @@
+import json
+import os
 from typing import List
 
 import src.lsm.memtable as lsm_t
 import src.lsm.search as lsm_s
 import src.lsm.compact as lsm_c
+import src.lsm.wal as lsm_w
+
+import src.dsa.sst.utility as sst_u
 import src.demo.utility as util
 
 
@@ -10,6 +15,7 @@ data_path = util.data_root_path()
 
 mt = lsm_t.LSMTreeMemtable(max_memtable_count=100, data_root_path=data_path)
 compactor = lsm_c.LSMTreeCompator(data_root_path=data_path)
+wal = lsm_w.WriteAheadLog(data_path)
 
 last_ids = {1: compactor.newest_file_id(1)}
 sst = lsm_s.LSMTreeSearch(memtable=mt.get_current(), data_root_path=data_path, max_sst_levels=1, last_file_ids=last_ids)
@@ -23,9 +29,13 @@ def save(customer_id: str, input: str):
         sst.update_memtable(mt.get_current())
         # and consider this new L0 id
         sst.update_last_id(0, flushed_id)
+        # WAL has been persisted to L0; reset it
+        wal.delete()
 
     # save the new item
-    mt.insert(customer_id, input)
+    result = mt.insert(customer_id, input)
+    if result is not None:
+        wal.append(*result)
 
 
 def level_counts(memtable_only: bool = False):
@@ -48,6 +58,7 @@ def truncate():
         mt.init_memtable()
         sst.update_memtable(mt.get_current())
         level_counts()
+        wal.delete()
 
 
 def compact():
@@ -90,11 +101,34 @@ def _parse_or_input_key(parts: List[str]):
 
 def search(parts: List[str]):
     result, source = sst.search(_parse_or_input_key(parts).strip())
-    print(f"{result} ({source})" if result is not None else "not found")
+
+    ts_source = f" ({source})" if source.find(sst_u.tombstone_source()) >= 0 else ""
+    print(f"{result} ({source})" if result is not None else f"__not_found__{ts_source}")
 
 
 def delete(parts: List[str]):
-    mt.get_current().delete(_parse_or_input_key(parts))
+    key, value = mt.get_current().delete(_parse_or_input_key(parts))
+    wal.append(key, value)
+    print(f"deleted {key}")
+
+
+def restore_memtable_wal():
+    if not os.path.exists(wal.path):
+        return
+    restored = 0
+    with open(wal.path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            key, value = record["key"], record["value"]
+            if value == sst_u.tombstone():
+                mt.get_current().delete(key)
+            else:
+                mt.get_current().insert(key, value)
+            restored += 1
+    print(f"restored {restored} entries from WAL")
 
 
 def help():

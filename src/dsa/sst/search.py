@@ -2,7 +2,7 @@ import os
 from typing import Any, List, Optional, Tuple
 
 import src.dsa.sst.read as sst_read
-import src.dsa.sst.utility as sst_util
+import src.dsa.sst.utility as sst_u
 
 
 class SortedTableSearch:
@@ -16,11 +16,11 @@ class SortedTableSearch:
 
     def search(self, key: str, level: int, last_id: str = "") -> Optional[Any]:
         """Return the value for *key* at *level*, or None if not found / deleted."""
-        level_dir = sst_util.level_dir(self._reader.root_data_path, level)
+        level_dir = sst_u.level_dir(self._reader.root_data_path, level)
         if not os.path.exists(level_dir):
             return None
 
-        last_id = last_id if level > 0 else sst_util.ulid_max()
+        last_id = last_id if level > 0 else sst_u.ulid_max()
         file_ids = self._reader.list_file_ids(level_dir, last_id)
 
         if not file_ids:
