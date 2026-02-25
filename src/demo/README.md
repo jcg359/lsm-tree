@@ -50,5 +50,6 @@ This installs dependencies via Poetry and launches the interactive prompt.
 | File | Description |
 |------|-------------|
 | `main.py` | REPL entry point - replays the WAL on startup, then runs the command loop. |
-| `controller.py` | Coordination layer between the REPL and the LSM tree modules. Write ahead log maintained and used to restore memtable on startup via `restore_memtable_wal()`. |
+| `controller.py` | Coordination layer between the REPL and the LSM tree modules. Manages WAL, memtable restore on startup, and LSN assignment for all writes. |
+| `versions.py` | `LogSequenceIssuer` - issues ULID-based log sequence numbers (LSNs) for every write, and converts an LSN back to a human-readable timestamp for search results. |
 | `utility.py` | Random data generation (customers, sensor readings) and file helpers. |

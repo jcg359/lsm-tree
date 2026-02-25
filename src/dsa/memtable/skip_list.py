@@ -7,12 +7,6 @@ import src.dsa.sst.utility as sst_u
 RecordWriteCallback = Callable[[int, int, Iterable[dict]], Tuple[str, str]]
 
 
-class SkipListWriteSequenceError(Exception):
-    """Raised when data is updated in an incorrect sequence or order."""
-
-    pass
-
-
 class SkipListNode:
     class SkipListValue:
         data: Any = None
@@ -41,7 +35,7 @@ class SkipListNode:
 
     def apply_value(self, data: Any, lsn: str):
         if self._value.lsn > lsn:
-            raise SkipListWriteSequenceError(f"current lsn {self._value.lsn} > {lsn}")
+            return  # stale write, skip — newer value already applied
 
         self._value.data = data
         self._value.lsn = lsn
