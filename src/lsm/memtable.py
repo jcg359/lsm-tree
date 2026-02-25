@@ -1,7 +1,9 @@
 import re
 import os
+from typing import Tuple, Any
 
 from src.dsa.memtable.skip_list import SkipList
+import src.dsa.sst.write as sst_write
 
 
 class LSMTreeMemtable:
@@ -46,7 +48,9 @@ class LSMTreeMemtable:
         if self._current.count() >= self._max_memtable_count:
             flush = self._current
             self.init_memtable()
-            _, file_id = flush.flush_to_level_zero(self._data_root_path)
+
+            write_records = sst_write.SortedTableWriter(self._data_root_path).write
+            _, file_id = flush.flush_to_level_zero(write_records)
             print(f"created L0 file id: {file_id}")
             return file_id
 
@@ -55,7 +59,7 @@ class LSMTreeMemtable:
     def init_memtable(self):
         self._current = SkipList(block_size=self._current.block_size, max_level=self._current.max_level)
 
-    def insert(self, customer_id: str, raw: str) -> tuple | None:
+    def sensor_value(self, customer_id: str, raw: str) -> Tuple[str, Any] | None:
         parts = [p.strip() for p in raw.split(",")]
 
         if len(parts) != 3:
@@ -87,6 +91,4 @@ class LSMTreeMemtable:
             "scale": scale,
             "humidity": humidity_raw,
         }
-        self._current.insert(key, value)
-        print(f"inserted: {key}")
         return key, value

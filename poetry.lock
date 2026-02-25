@@ -713,5 +713,5 @@ networkx = "*"
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.12"
-content-hash = "5f52bc7639c6eb6aa9fe7aa34582d6eeb8cdb651426b05ced7ad7cf4cd8db94d"
+python-versions = ">=3.13"
+content-hash = "35d5290a0d7265727be2571ba601283cc8e948ccab248ce8848a67caee01fbc9"

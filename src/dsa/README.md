@@ -1,14 +1,15 @@
 # DSA - Data Structures & Algorithms
 
 ---
+Implements 2 key data structures in support of the LSM Tree
 
-## `memtable/`
+## 1. Skip List (`memtable/`)
 
 ### `skip_list.py`
 
 #### `SkipListNode`
 
-Internal node for the skip list. Holds a key, value, and a `forward` list of next-pointers - one slot per level - enabling O(log n) traversal by skipping over nodes at higher levels.
+Internal node for the skip list. Holds a key, a `SkipListValue` (containing the stored data and its LSN), and a `forward` list of next-pointers - one slot per level - enabling O(log n) traversal by skipping over nodes at higher levels.
 
 #### `SkipList`
 
@@ -25,12 +26,13 @@ A sorted in-memory key-value store (memtable). Keys are kept in sorted order at 
 
 | Method | Description |
 |--------|-------------|
-| `insert(key, value)` | Insert or overwrite. Revives a tombstoned key. |
-| `search(key)` | Return the raw stored value (including the tombstone) or `None` if the key is absent. Callers are responsible for interpreting the tombstone. |
-| `delete(key) -> (key, tombstone)` | Soft-delete via tombstone. Always writes the tombstone so deletes propagate to lower SSTable levels on flush. Returns `(key, tombstone_value)`. |
+| `insert(key, value, lsn)` | Insert or overwrite. Revives a tombstoned key. Stale writes (LSN ≤ current) are silently skipped. |
+| `search(key) -> SkipListValue \| None` | Return a `SkipListValue` (`.data`, `.lsn`) or `None` if the key is absent. A tombstoned entry returns a `SkipListValue` whose `.data` is the tombstone sentinel. |
+| `delete(key, lsn)` | Soft-delete via tombstone. Always writes the tombstone so deletes propagate to lower SSTable levels on flush. |
 | `count() -> int` | Number of live (non-tombstoned) entries. |
 | `ordered_keys()` | Iterator over keys in sorted order, tombstones excluded. |
-| `flush_to_level_zero(root_folder) -> (data_path, file_id)` | Write all entries (including tombstones) to a new SSTable pair under `root_folder/L0/`. Returns `(data_path, file_id)`. |
+| `flush_to_level_zero(write_records) -> (data_path, file_id)` | Write all entries (including tombstones) to a new SSTable via the supplied `write_records` callback. Returns `(data_path, file_id)`. |
+| `build_value(value: dict) -> SkipListValue` | Construct a `SkipListValue` from a `{"data": …, "lsn": …}` dict (used when reading back from WAL or SSTable). |
 
 **Time complexity**
 
@@ -43,17 +45,46 @@ A sorted in-memory key-value store (memtable). Keys are kept in sorted order at 
 
 Average case holds because each node's level is determined by independent coin flips at insert time - the probability that any node is promoted to level k falls off as (½)^k. Worst case requires every coin flip to produce the maximum level for every node, which is astronomically unlikely in practice.
 
+```
+  Example: Searching for [8] in skip list...
+
+  Start at [H] on L3
+
+    L3: next is [21] ── NOT (21 < 8)
+        ↓
+      DROP TO NEXT LEVEL
+        ↓
+
+    L2: sitting at [H]
+        next is [5],  5  < 8 ───── MOVE RIGHT ─────> [5]
+        next is [21] ── NOT (21 < 8)
+        ↓
+      DROP TO NEXT LEVEL
+        ↓                                                    
+
+    L1: sitting at [5]                                      
+        next is [8] ── NOT (8 < 8)
+        ↓
+      DROP TO NEXT LEVEL
+        ↓
+
+    L0: sitting at [5]
+        next is [8] ── NOT (8 < 8) ───────────────| STOP
+
+  current.next[0] = [8]
+```
+
 ---
 
-## `sst/`
+## 2. Sorted String Table (`sst/`) on-disk
 
 Sorted String Table (SSTable) file format and operations. All files in this package share a common on-disk layout:
 
 ```
 <root>/
-  L0/   <ULID>.jsonl              one JSON record per line: {"key": …, "value": …}
+  L0/   <ULID>.jsonl              one JSON record per line: {"key": …, "value": {"data": …, "lsn": …}}
         <ULID>.index.jsonl        block index: {"block", "first_key", "offset", "record_count"}
-        wal.jsonl                 write-ahead log (one JSON record per line, same format)
+        wal.jsonl                 write-ahead log (one JSON record per line, same value format)
   L1/   …
 ```
 

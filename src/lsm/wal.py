@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Any
 
 import src.dsa.sst.utility as sst_u
 
@@ -10,9 +11,9 @@ class WriteAheadLog:
         os.makedirs(l0_dir, exist_ok=True)
         self._path = os.path.join(l0_dir, "wal.jsonl")
 
-    def append(self, key: str, value) -> None:
+    def append(self, key: str, value: Any, lsn: str) -> None:
         with open(self._path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"key": key, "value": value}) + "\n")
+            f.write(json.dumps({"key": key, "value": {"data": value, "lsn": lsn}}) + "\n")
 
     def delete(self) -> None:
         if os.path.exists(self._path):

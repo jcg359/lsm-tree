@@ -8,11 +8,21 @@ Data is persisted to `src/data/` as JSONL SSTable files.
 
 ## Running the demo
 
-From the project root:
+**Prerequisites:** Python 3.13+ and [pipx](https://pipx.pypa.io/) must be installed. The scripts install Poetry and all project dependencies automatically.
+
+**Linux / macOS:**
 
 ```bash
-bash run-demo.sh
+bash ./scripts/poetry-run-demo.sh
 ```
+
+**Windows:**
+
+```bat
+scripts\poetry-run-demo.bat
+```
+
+> Also installs `pyreadline3` for readline support and handles pipx PATH setup automatically.
 
 This installs dependencies via Poetry and launches the interactive prompt.
 
@@ -40,5 +50,6 @@ This installs dependencies via Poetry and launches the interactive prompt.
 | File | Description |
 |------|-------------|
 | `main.py` | REPL entry point - replays the WAL on startup, then runs the command loop. |
-| `controller.py` | Coordination layer between the REPL and the LSM tree modules. Write ahead log maintained and used to restore memtable on startup via `restore_memtable_wal()`. |
+| `controller.py` | Coordination layer between the REPL and the LSM tree modules. Manages WAL, memtable restore on startup, and LSN assignment for all writes. |
+| `versions.py` | `LogSequenceIssuer` - issues ULID-based log sequence numbers (LSNs) for every write, and converts an LSN back to a human-readable timestamp for search results. |
 | `utility.py` | Random data generation (customers, sensor readings) and file helpers. |

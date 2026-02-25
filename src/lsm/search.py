@@ -31,17 +31,25 @@ class LSMTreeSearch:
     def search(self, key: str):
         result = self._memtable.search(key)
         if result is not None:
-            if result == sst_u.tombstone():
-                return None, f"MT{sst_u.tombstone_source()}"
-            return result, "MT"
+            if result.is_tombstoned():
+                none_value = self._memtable.build_value({"data": None, "lsn": result.lsn})
+                return none_value, f"MT{sst_u.tombstone_source()}"
+
+            # need to make a copy to break reference to in memory
+            return self._memtable.build_value(result.__dict__), "MT"
 
         for i in range(0, self._max_sst_levels + 1):
             last_id = self._last_file_ids[i] if i in self._last_file_ids else sst_u.ulid_min()
 
-            result = self._sst.search(key, i, last_id)
-            if result is not None:
-                if result == sst_u.tombstone():
-                    return None, f"L{i}{sst_u.tombstone_source()}"
+            sst_raw = self._sst.search(key, i, last_id)
+            if sst_raw is not None:
+                result = self._memtable.build_value(sst_raw)
+
+                if result.is_tombstoned():
+                    none_value = self._memtable.build_value({"data": None, "lsn": result.lsn})
+                    return none_value, f"L{i}{sst_u.tombstone_source()}"
+
+                none_value = self._memtable.build_value({"data": None, "lsn": ""})
                 return result, f"L{i}"
 
         return None, f"L{self._max_sst_levels}"
