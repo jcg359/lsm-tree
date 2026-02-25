@@ -9,15 +9,17 @@ import src.lsm.wal as lsm_w
 
 import src.dsa.sst.utility as sst_u
 import src.demo.utility as util
+from src.demo.versions import LogSequenceIssuer
 
 
 class LSMController:
-    def __init__(self, data_path: str = None):
+    def __init__(self, lsn_issuer: LogSequenceIssuer, data_path: str = None):
         self._data_path = data_path or util.data_root_path()
 
         self._mt = lsm_t.LSMTreeMemtable(max_memtable_count=100, data_root_path=self._data_path)
         self._compactor = lsm_c.LSMTreeCompator(data_root_path=self._data_path)
         self._wal = lsm_w.WriteAheadLog(self._data_path)
+        self._lsns = lsn_issuer
 
         last_ids = {1: self._compactor.newest_file_id(1)}
         self._sst = lsm_s.LSMTreeSearch(
@@ -27,7 +29,7 @@ class LSMController:
             last_file_ids=last_ids,
         )
 
-    def save(self, customer_id: str, input: str):
+    def save(self, customer_id: str, sensor_input: str):
         # if insert causes a L0 flush
         flushed_id = self._mt.flush_if_full()
         if flushed_id is not None:
@@ -38,10 +40,13 @@ class LSMController:
             # WAL has been persisted to L0; reset it
             self._wal.delete()
 
-        # save the new item
-        result = self._mt.insert(customer_id, input)
-        if result is not None:
-            self._wal.append(*result)
+        # save the new
+        key_value = self._mt.sensor_value(customer_id, sensor_input)
+        if key_value is not None:
+            lsn = self._lsns.next_sequence()
+            self._wal.append(key_value[0], key_value[1], lsn)
+            self._mt.get_current().insert(key_value[0], key_value[1], lsn)
+            print(f"inserted: {key_value[0]}")
 
     def level_counts(self, memtable_only: bool = False):
         results = [{"lsm_level": "MT", "key_count": self._mt.get_current().count()}]
@@ -115,20 +120,37 @@ class LSMController:
         return self.search(key)
 
     def search(self, key):
+        not_found = "__not_found_"
         result, source = self._sst.search(key)
 
-        ts_source = f" ({source})" if source.find(sst_u.tombstone_source()) >= 0 else ""
-        print(f"{result} ({source})" if result is not None else f"__not_found__{ts_source}")
-        return result, source
+        if result is None:
+            print(not_found)
+            return result, source
+
+        src = source
+        slsn = (result.lsn or "").strip()
+        datets = self._lsns.sequence_datetime(slsn) if slsn != "" else ""
+        if datets != "":
+            src += f" / {datets}"
+
+        if result.data is None:
+            src = None if src.find(sst_u.tombstone_source()) < 0 else src
+
+            print(f"{not_found} ({src})")
+            return None, src
+
+        print(f"{result.data} ({src})")
+        return result.data, source
 
     def delete_input(self, parts: List[str]):
         deleted_key = self.delete(self._parse_or_input_key(parts))
         print(f"deleted {deleted_key}")
 
     def delete(self, key):
-        deleted_key, value = self._mt.get_current().delete(key)
-        self._wal.append(deleted_key, value.__dict__)
-        return deleted_key
+        lsn = self._lsns.next_sequence()
+        self._wal.append(key, sst_u.tombstone(), lsn)
+        self._mt.get_current().delete(key, lsn)
+        return key
 
     def restore_memtable_wal(self):
         if not os.path.exists(self._wal.path):
@@ -142,11 +164,12 @@ class LSMController:
                 if not line:
                     continue
                 record = json.loads(line)
-                key, value = record["key"], record["value"]
-                if value == sst_u.tombstone():
-                    mt.delete(key)
+                key, raw_value = record["key"], record["value"]
+                value = self._mt.get_current().build_value(raw_value)
+                if value.is_tombstoned():
+                    mt.delete(key, value.lsn)
                 else:
-                    mt.insert(key, value)
+                    mt.insert(key, value.data, value.lsn)
                 restored += 1
         print(f"restored {mt.count()} memtable keys from WAL")
 

@@ -1,7 +1,9 @@
 import readline
+from src.demo.versions import LogSequenceIssuer
 from src.demo.controller import LSMController
 
-ctrl = LSMController()
+lsns = LogSequenceIssuer()
+ctrl = LSMController(lsns)
 
 args_cmd = {"load": ctrl.load_input, "search": ctrl.search_input, "delete": ctrl.delete_input}
 single_cmd = {"input": ctrl.save_input, "truncate": ctrl.truncate_input, "compact": ctrl.compact}

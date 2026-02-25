@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 import random
 from typing import List, Optional, Callable, Tuple, Iterable, Any
 
@@ -8,11 +7,16 @@ import src.dsa.sst.utility as sst_u
 RecordWriteCallback = Callable[[int, int, Iterable[dict]], Tuple[str, str]]
 
 
+class SkipListWriteSequenceError(Exception):
+    """Raised when data is updated in an incorrect sequence or order."""
+
+    pass
+
+
 class SkipListNode:
     class SkipListValue:
-        saved_utc: Optional[str] = None
-        version: int = 0
         data: Any = None
+        lsn: str = sst_u.ulid_min()
 
         def __str__(self):
             return f"SkipListValue: {self.__dict__}"
@@ -32,18 +36,15 @@ class SkipListNode:
     def is_tombstoned(self):
         return self._value.is_tombstoned()
 
-    def apply_value(self, data: Any):
-        self._value.data = data
-        self._value.version += 1
-        self._value.saved_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f UTC")
+    def current_precedes(self, new_lsn: str):
+        return self._value.lsn < new_lsn
 
-    @staticmethod
-    def build_value(value: dict):
-        result = SkipListNode.SkipListValue()
-        result.data = value["data"]
-        result.version = value["version"]
-        result.saved_utc = value["saved_utc"]
-        return result
+    def apply_value(self, data: Any, lsn: str):
+        if self._value.lsn > lsn:
+            raise SkipListWriteSequenceError(f"current lsn {self._value.lsn} > {lsn}")
+
+        self._value.data = data
+        self._value.lsn = lsn
 
 
 class SkipList:
@@ -59,7 +60,7 @@ class SkipList:
     # Public interface
     # ------------------------------------------------------------------
 
-    def insert(self, key, value) -> None:
+    def insert(self, key: str, value: Any, lsn: str) -> None:
         update = self._find_update_nodes(key)
 
         candidate = update[0].forward[0]
@@ -68,7 +69,7 @@ class SkipList:
             if candidate.is_tombstoned():
                 self._size += 1
 
-            candidate.apply_value(value)
+            candidate.apply_value(value, lsn)
             return
 
         new_level = self._random_level()
@@ -80,7 +81,7 @@ class SkipList:
             self._level = new_level
 
         node = SkipListNode(key, new_level)
-        node.apply_value(value)
+        node.apply_value(value, lsn)
         for i in range(new_level + 1):
             # akin to inserting into ordered linked list
             node.forward[i] = update[i].forward[i]
@@ -100,7 +101,7 @@ class SkipList:
             return candidate.current_value()
         return None
 
-    def delete(self, key) -> Tuple[str, SkipListNode.SkipListValue]:
+    def delete(self, key: str, lsn: str) -> Tuple[str, SkipListNode.SkipListValue]:
         update = self._find_update_nodes(key)
 
         candidate = update[0].forward[0]
@@ -109,9 +110,8 @@ class SkipList:
             if not candidate.is_tombstoned():
                 self._size -= 1
 
-            candidate.apply_value(sst_u.tombstone())
-
-            return key, candidate.current_value()
+            candidate.apply_value(sst_u.tombstone(), lsn)
+            return
 
         # key not present - insert a tombstone node so the delete propagates to SSTables
         new_level = self._random_level()
@@ -121,13 +121,11 @@ class SkipList:
             self._level = new_level
 
         node = SkipListNode(key, new_level)
-        node.apply_value(sst_u.tombstone())
+        node.apply_value(sst_u.tombstone(), lsn)
 
         for i in range(new_level + 1):
             node.forward[i] = update[i].forward[i]
             update[i].forward[i] = node
-
-        return key, node.current_value()
 
     def count(self) -> int:
         return self._size
@@ -139,7 +137,6 @@ class SkipList:
         def _records():
             n = node
             while n is not None:
-                print({"key": n.key, "value": n.current_value().__dict__})
                 yield {"key": n.key, "value": n.current_value().__dict__}
                 n = n.forward[0]
 
@@ -152,6 +149,12 @@ class SkipList:
             if not node.is_tombstoned():
                 yield node.key
             node = node.forward[0]
+
+    def build_value(self, value: dict):
+        result = SkipListNode.SkipListValue()
+        result.data = value["data"]
+        result.lsn = value["lsn"]
+        return result
 
     def __str__(self) -> str:
         pairs = ", ".join(f"{k!r}: {v!r}" for k, v in self.ordered_keys())

@@ -1,5 +1,6 @@
 import re
 import os
+from typing import Tuple, Any
 
 from src.dsa.memtable.skip_list import SkipList
 import src.dsa.sst.write as sst_write
@@ -58,7 +59,7 @@ class LSMTreeMemtable:
     def init_memtable(self):
         self._current = SkipList(block_size=self._current.block_size, max_level=self._current.max_level)
 
-    def insert(self, customer_id: str, raw: str) -> tuple | None:
+    def sensor_value(self, customer_id: str, raw: str) -> Tuple[str, Any] | None:
         parts = [p.strip() for p in raw.split(",")]
 
         if len(parts) != 3:
@@ -90,6 +91,4 @@ class LSMTreeMemtable:
             "scale": scale,
             "humidity": humidity_raw,
         }
-        self._current.insert(key, value)
-        print(f"inserted: {key}")
         return key, value

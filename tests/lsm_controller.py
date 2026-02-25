@@ -3,13 +3,15 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src.demo.versions import LogSequenceIssuer
 from src.demo.controller import LSMController
 
 
 def test_lsm_controller():
     test_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
-    ctrl = LSMController(data_path=test_data_path)
+    lsns = LogSequenceIssuer()
+    ctrl = LSMController(data_path=test_data_path, lsn_issuer=lsns)
 
     # 1. truncate with Y
     ctrl.truncate("Y")
@@ -26,16 +28,20 @@ def test_lsm_controller():
 
     # 3. search and confirm result is in MT
     result, source = ctrl.search(target_key)
+    [custid, raw_result_input] = target_key.split("#")
+
     assert result is not None, f"Key {target_key!r} not found after MT load"
     assert source == "MT", f"Expected source MT, got {source!r}"
 
     # 3a. delete and confirm key is gone; undelete and confirm it comes back
     saved_result = result
+    raw_result_input += f",{result['temperature']}{result['scale']},{result['humidity']}"
+
     ctrl.delete(target_key)
     deleted_result, source = ctrl.search(target_key)
-
+    print(deleted_result)
     assert deleted_result is None, f"Key {target_key!r} should be absent after delete (MT)"
-    ctrl._mt.get_current().insert(target_key, saved_result.data)
+    ctrl.save(custid, raw_result_input)
     restored_result, _ = ctrl.search(target_key)
     assert restored_result is not None, f"Key {target_key!r} should be present after undelete (MT)"
 
@@ -57,7 +63,7 @@ def test_lsm_controller():
     ctrl.delete_input(["", target_key])
     deleted_result, _ = ctrl.search(target_key)
     assert deleted_result is None, f"Key {target_key!r} should be absent after delete (L0)"
-    ctrl._mt.get_current().insert(target_key, saved_result.data)
+    ctrl.save(custid, raw_result_input)
     restored_result, _ = ctrl.search(target_key)
     assert restored_result is not None, f"Key {target_key!r} should be present after undelete (L0)"
 
@@ -75,11 +81,10 @@ def test_lsm_controller():
     assert source == "L1", f"Expected source L1, got {source}"
 
     # 8a. delete and confirm key is gone; undelete and confirm it comes back
-    saved_result = result
     ctrl.delete_input(["", target_key])
     deleted_result, _ = ctrl.search(target_key)
     assert deleted_result is None, f"Key {target_key!r} should be absent after delete (L1)"
-    ctrl._mt.get_current().insert(target_key, saved_result.data)
+    ctrl.save(custid, raw_result_input)
     restored_result, _ = ctrl.search(target_key)
     assert restored_result is not None, f"Key {target_key!r} should be present after undelete (L1)"
 
@@ -100,7 +105,7 @@ def test_lsm_controller():
         (c["key_count"] for c in ctrl.level_counts(memtable_only=True) if c["lsm_level"] == "MT"), 0
     )
 
-    ctrl2 = LSMController(data_path=test_data_path)
+    ctrl2 = LSMController(data_path=test_data_path, lsn_issuer=lsns)
     ctrl2.restore_memtable_wal()
 
     new_mt_count = next((c["key_count"] for c in ctrl2.level_counts(memtable_only=True) if c["lsm_level"] == "MT"), 0)
