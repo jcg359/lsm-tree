@@ -6,7 +6,7 @@ An LSM (Log-Structured Merge) tree implementation in Python, built from scratch 
 
 ## Running the demo
 
-**Prerequisites:** Python 3 and [pipx](https://pipx.pypa.io/) must be installed. The scripts install Poetry and all project dependencies automatically.
+**Prerequisites:** Python 3.13+ and [pipx](https://pipx.pypa.io/) must be installed. The scripts install Poetry and all project dependencies automatically.
 
 **Linux / macOS:**
 
