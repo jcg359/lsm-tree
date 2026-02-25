@@ -53,9 +53,10 @@ class LSMController:
 
     def memtable_keys(self):
         print("Keys in Memtable:")
-        keys = " ".join([f"< {i} >" for i in self._mt.get_current().ordered_keys()])
-        print(keys if len(keys) > 0 else "None")
-        return keys
+        key_list = list(self._mt.get_current().ordered_keys())
+        formatted = " ".join([f"< {i} >" for i in key_list])
+        print(formatted if len(formatted) > 0 else "None")
+        return key_list
 
     def truncate_input(self):
         self.truncate(input(f"confirm clear data from {self._data_path} (Y or N):"))
