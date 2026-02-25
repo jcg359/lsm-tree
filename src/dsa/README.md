@@ -1,8 +1,9 @@
 # DSA - Data Structures & Algorithms
 
 ---
+Implementation 2 key data structures in support of the LSM Tree
 
-## `memtable/`
+## 1. Skip List (`memtable/`)
 
 ### `skip_list.py`
 
@@ -43,9 +44,38 @@ A sorted in-memory key-value store (memtable). Keys are kept in sorted order at 
 
 Average case holds because each node's level is determined by independent coin flips at insert time - the probability that any node is promoted to level k falls off as (½)^k. Worst case requires every coin flip to produce the maximum level for every node, which is astronomically unlikely in practice.
 
+```
+  Example: Searching for [8] in skip list...
+
+  Start at [H] on L3
+
+    L3: next is [21] ── NOT (21 < 8)
+        ↓
+      DROP TO NEXT LEVEL
+        ↓
+
+    L2: sitting at [H]
+        next is [5],  5  < 8 ───── MOVE RIGHT ─────> [5]
+        next is [21] ── NOT (21 < 8)
+        ↓
+      DROP TO NEXT LEVEL
+        ↓                                                    
+
+    L1: sitting at [5]                                      
+        next is [8] ── NOT (8 < 8)
+        ↓
+      DROP TO NEXT LEVEL
+        ↓
+
+    L0: sitting at [5]
+        next is [8] ── NOT (8 < 8) ───────────────| STOP
+
+  current.next[0] = [8]
+```
+
 ---
 
-## `sst/`
+## 2. Sorted String Table (`sst/`) on-disk
 
 Sorted String Table (SSTable) file format and operations. All files in this package share a common on-disk layout:
 

@@ -2,6 +2,7 @@ import re
 import os
 
 from src.dsa.memtable.skip_list import SkipList
+import src.dsa.sst.write as sst_write
 
 
 class LSMTreeMemtable:
@@ -46,7 +47,9 @@ class LSMTreeMemtable:
         if self._current.count() >= self._max_memtable_count:
             flush = self._current
             self.init_memtable()
-            _, file_id = flush.flush_to_level_zero(self._data_root_path)
+
+            write_records = sst_write.SortedTableWriter(self._data_root_path).write
+            _, file_id = flush.flush_to_level_zero(write_records)
             print(f"created L0 file id: {file_id}")
             return file_id
 

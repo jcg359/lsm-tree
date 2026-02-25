@@ -11,7 +11,7 @@ Data is persisted to `src/data/` as JSONL SSTable files.
 From the project root:
 
 ```bash
-bash run-demo.sh
+bash ./scripts/poetry-run-demo.sh
 ```
 
 This installs dependencies via Poetry and launches the interactive prompt.

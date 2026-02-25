@@ -9,7 +9,7 @@ An LSM (Log-Structured Merge) tree implementation in Python, built from scratch 
 From the project root:
 
 ```bash
-bash run-demo.sh
+bash ./scripts/poetry-run-demo.sh
 ```
 
 This installs dependencies via Poetry and launches an interactive prompt. Type `help` at the prompt to see all available commands.

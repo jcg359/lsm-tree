@@ -1,9 +1,10 @@
-import os
 import random
-from typing import List, Optional
+from typing import List, Optional, Callable, Tuple, Iterable
 
-import src.dsa.sst.write as sst_write
 import src.dsa.sst.utility as sst_u
+
+
+RecordWriteCallback = Callable[[int, int, Iterable[dict]], Tuple[str, str]]
 
 
 class SkipListNode:
@@ -93,7 +94,7 @@ class SkipList:
     def count(self) -> int:
         return self._size
 
-    def flush_to_level_zero(self, root_folder: str) -> tuple[str, str]:
+    def flush_to_level_zero(self, write_records: RecordWriteCallback) -> tuple[str, str]:
         # walk level-0 linked list and stream records into a new SSTable
         node = self._head.forward[0]
 
@@ -103,7 +104,7 @@ class SkipList:
                 yield {"key": n.key, "value": n.value}
                 n = n.forward[0]
 
-        return sst_write.SortedTableWriter(root_folder).write(0, self.block_size, _records())
+        return write_records(0, self.block_size, _records())
 
     def ordered_keys(self):
         # walk level-0 linked list in sorted order, skipping tombstones
@@ -114,7 +115,7 @@ class SkipList:
             node = node.forward[0]
 
     def __str__(self) -> str:
-        pairs = ", ".join(f"{k!r}: {v!r}" for k, v in self.ordered_nodes())
+        pairs = ", ".join(f"{k!r}: {v!r}" for k, v in self.ordered_keys())
         return f"SkipList({{{pairs}}})"
 
     # ------------------------------------------------------------------

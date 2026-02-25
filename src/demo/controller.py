@@ -128,7 +128,7 @@ def restore_memtable_wal():
             else:
                 mt.get_current().insert(key, value)
             restored += 1
-    print(f"restored {restored} entries from WAL")
+    print(f"restored {restored} memtable keys from WAL")
 
 
 def help():

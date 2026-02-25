@@ -1,6 +1,5 @@
 import random
 import os
-from pathlib import Path
 
 sensors = [
     ("attic", {"temp": 104, "scale": "F", "humidity": 28}),
