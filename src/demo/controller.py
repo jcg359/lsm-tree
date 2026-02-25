@@ -121,10 +121,14 @@ class LSMController:
         print(f"{result} ({source})" if result is not None else f"__not_found__{ts_source}")
         return result, source
 
-    def delete(self, parts: List[str]):
-        key, value = self._mt.get_current().delete(self._parse_or_input_key(parts))
-        self._wal.append(key, value)
-        print(f"deleted {key}")
+    def delete_input(self, parts: List[str]):
+        deleted_key = self.delete(self._parse_or_input_key(parts))
+        print(f"deleted {deleted_key}")
+
+    def delete(self, key):
+        deleted_key, value = self._mt.get_current().delete(key)
+        self._wal.append(deleted_key, value.__dict__)
+        return deleted_key
 
     def restore_memtable_wal(self):
         if not os.path.exists(self._wal.path):

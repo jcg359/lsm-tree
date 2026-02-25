@@ -3,7 +3,7 @@ from src.demo.controller import LSMController
 
 ctrl = LSMController()
 
-args_cmd = {"load": ctrl.load_input, "search": ctrl.search_input, "delete": ctrl.delete}
+args_cmd = {"load": ctrl.load_input, "search": ctrl.search_input, "delete": ctrl.delete_input}
 single_cmd = {"input": ctrl.save_input, "truncate": ctrl.truncate_input, "compact": ctrl.compact}
 show_cmd = {"count": ctrl.level_counts, "memtable": ctrl.memtable_keys}
 

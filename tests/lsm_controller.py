@@ -20,13 +20,24 @@ def test_lsm_controller():
     # 2. load 50 for 3 customers; get a key from the memtable
     ctrl.load("3", 50)
     keys = ctrl.memtable_keys()
-    assert len(keys) > 0, "Expected keys in memtable after load"
+    assert len(keys) > 1, "Expected keys in memtable after load"
     target_key = keys[0]
+    l1_key = keys[1]
 
     # 3. search and confirm result is in MT
     result, source = ctrl.search(target_key)
     assert result is not None, f"Key {target_key!r} not found after MT load"
     assert source == "MT", f"Expected source MT, got {source!r}"
+
+    # 3a. delete and confirm key is gone; undelete and confirm it comes back
+    saved_result = result
+    ctrl.delete(target_key)
+    deleted_result, source = ctrl.search(target_key)
+
+    assert deleted_result is None, f"Key {target_key!r} should be absent after delete (MT)"
+    ctrl._mt.get_current().insert(target_key, saved_result.data)
+    restored_result, _ = ctrl.search(target_key)
+    assert restored_result is not None, f"Key {target_key!r} should be present after undelete (MT)"
 
     # 4. keep loading 50 for 3 customers until L0 key count exceeds 150
     while True:
@@ -41,6 +52,15 @@ def test_lsm_controller():
     assert result is not None, f"Key {target_key!r} not found after L0 flush"
     assert source == "L0", f"Expected source L0, got {source!r}"
 
+    # 5a. delete and confirm key is gone; undelete and confirm it comes back
+    saved_result = result
+    ctrl.delete_input(["", target_key])
+    deleted_result, _ = ctrl.search(target_key)
+    assert deleted_result is None, f"Key {target_key!r} should be absent after delete (L0)"
+    ctrl._mt.get_current().insert(target_key, saved_result.data)
+    restored_result, _ = ctrl.search(target_key)
+    assert restored_result is not None, f"Key {target_key!r} should be present after undelete (L0)"
+
     # 6. compact
     ctrl.compact()
 
@@ -50,9 +70,18 @@ def test_lsm_controller():
     assert l1_count > 0, "Expected items in L1 after compact"
 
     # 8. search and confirm result is now in L1
-    result, source = ctrl.search(target_key)
-    assert result is not None, f"Key {target_key!r} not found after compact"
-    assert source == "L1", f"Expected source L1, got {source!r}"
+    result, source = ctrl.search(l1_key)
+    assert result is not None, f"Key {l1_key} not found after compact"
+    assert source == "L1", f"Expected source L1, got {source}"
+
+    # 8a. delete and confirm key is gone; undelete and confirm it comes back
+    saved_result = result
+    ctrl.delete_input(["", target_key])
+    deleted_result, _ = ctrl.search(target_key)
+    assert deleted_result is None, f"Key {target_key!r} should be absent after delete (L1)"
+    ctrl._mt.get_current().insert(target_key, saved_result.data)
+    restored_result, _ = ctrl.search(target_key)
+    assert restored_result is not None, f"Key {target_key!r} should be present after undelete (L1)"
 
     # 9. confirm exactly 2 L1 data files in the data directory
     l1_dir = os.path.join(test_data_path, "L1")
