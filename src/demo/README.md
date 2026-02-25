@@ -22,6 +22,8 @@ bash ./scripts/poetry-run-demo.sh
 scripts\poetry-run-demo.bat
 ```
 
+> Also installs `pyreadline3` for readline support and handles pipx PATH setup automatically.
+
 This installs dependencies via Poetry and launches the interactive prompt.
 
 ---
