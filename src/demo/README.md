@@ -8,10 +8,18 @@ Data is persisted to `src/data/` as JSONL SSTable files.
 
 ## Running the demo
 
-From the project root:
+**Prerequisites:** Python 3 and [pipx](https://pipx.pypa.io/) must be installed. The scripts install Poetry and all project dependencies automatically.
+
+**Linux / macOS:**
 
 ```bash
 bash ./scripts/poetry-run-demo.sh
+```
+
+**Windows:**
+
+```bat
+scripts\poetry-run-demo.bat
 ```
 
 This installs dependencies via Poetry and launches the interactive prompt.
