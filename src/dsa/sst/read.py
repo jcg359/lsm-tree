@@ -45,7 +45,7 @@ class SortedTableReader:
             for fileid in self.list_file_ids(ldir, last_ids[i]):
                 count += sum([ix["record_count"] for ix in self.read_index(ldir, fileid)])
 
-            result.append({"sst_level": f"L{i}", "key_count": count})
+            result.append({"lsm_level": f"L{i}", "key_count": count})
         return result
 
     def list_file_ids(self, folder: str, last_id: str) -> List[str]:

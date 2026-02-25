@@ -1,8 +1,10 @@
 import readline
-import src.demo.controller as ctrl
+from src.demo.controller import LSMController
 
-args_cmd = {"load": ctrl.load, "search": ctrl.search, "delete": ctrl.delete}
-single_cmd = {"input": ctrl.save_input, "truncate": ctrl.truncate, "compact": ctrl.compact}
+ctrl = LSMController()
+
+args_cmd = {"load": ctrl.load_input, "search": ctrl.search_input, "delete": ctrl.delete}
+single_cmd = {"input": ctrl.save_input, "truncate": ctrl.truncate_input, "compact": ctrl.compact}
 show_cmd = {"count": ctrl.level_counts, "memtable": ctrl.memtable_keys}
 
 ctrl.restore_memtable_wal()
