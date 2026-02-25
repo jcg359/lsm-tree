@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
 import random
-from typing import List, Optional, Callable, Tuple, Iterable
+from typing import List, Optional, Callable, Tuple, Iterable, Any
 
 import src.dsa.sst.utility as sst_u
 
@@ -7,10 +8,28 @@ import src.dsa.sst.utility as sst_u
 RecordWriteCallback = Callable[[int, int, Iterable[dict]], Tuple[str, str]]
 
 
+class SkipListValue:
+    saved_utc: Optional[str] = None
+    version: int = 0
+    data: Any = None
+
+    def load_value(self, version: int, saved_utc: str, data: Any):
+        self.data = data
+        self.version = version
+        self.saved_utc = saved_utc
+
+    def apply_value(self, data: Any):
+        self.data = data
+        self.version += 1
+        self.saved_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f UTC")
+
+
 class SkipListNode:
-    def __init__(self, key, value, level: int):
+    def __init__(self, key: str, value: Any, level: int):
         self.key = key
-        self.value = value
+        self.value = SkipListValue()
+        self.value.apply_value(value)
+
         self.forward: List[Optional["SkipListNode"]] = [None] * (level + 1)
 
 
@@ -33,9 +52,10 @@ class SkipList:
         candidate = update[0].forward[0]
         if candidate is not None and candidate.key == key:
             # revive the tombstone
-            if candidate.value == sst_u.tombstone():
+            if candidate.value.data == sst_u.tombstone():
                 self._size += 1
-            candidate.value = value
+
+            candidate.value.apply_value(value)
             return
 
         new_level = self._random_level()
@@ -72,9 +92,11 @@ class SkipList:
         candidate = update[0].forward[0]
         if candidate is not None and candidate.key == key:
             # key exists - decrement size only if it was a live entry
-            if candidate.value != sst_u.tombstone():
+            if candidate.value.data != sst_u.tombstone():
                 self._size -= 1
-            candidate.value = sst_u.tombstone()
+
+            candidate.value.apply_value(sst_u.tombstone())
+
             return key, sst_u.tombstone()
 
         # key not present - insert a tombstone node so the delete propagates to SSTables
@@ -101,7 +123,7 @@ class SkipList:
         def _records():
             n = node
             while n is not None:
-                yield {"key": n.key, "value": n.value}
+                yield {"key": n.key, "value": n.value.__dict__}
                 n = n.forward[0]
 
         return write_records(0, self.block_size, _records())
@@ -110,7 +132,7 @@ class SkipList:
         # walk level-0 linked list in sorted order, skipping tombstones
         node = self._head.forward[0]
         while node is not None:
-            if node.value != sst_u.tombstone():
+            if node.value.data != sst_u.tombstone():
                 yield node.key
             node = node.forward[0]
 
@@ -122,7 +144,7 @@ class SkipList:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _find_update_nodes(self, key) -> list:
+    def _find_update_nodes(self, key) -> List[Optional[SkipListNode]]:
         # update[i] = rightmost node at level i whose key < key (or head sentinel)
         update = [None] * (self.max_level + 1)
         node = self._head
